@@ -111,15 +111,22 @@ body {
 }
 
 .act-link {
-    font-size: 0.8em;
+    font-size: 0.9em;
     margin: 4px 0 4px 0;
     text-decoration: none;
     color: #f2db86;
-    line-height: 15px;
+    line-height: 20px;
     width: auto;
     padding-bottom: 3px;
     border-bottom: 1px solid #f2db86;
     transition: color .3s, border-bottom-color .3s;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.act-link:focus {
+    outline: none;
+    box-shadow: none;
 }
 
 .act-link.inline::before {
@@ -240,6 +247,13 @@ body {
 .slide-fade-leave-to {
     transform: translateY(10px);
     opacity: 0;
+}
+
+.currdate {
+    display: block;
+    font-size: .8em;
+    margin: 20px 0 100px 0;
+    opacity: 0.5;
 }
 
 *::-webkit-scrollbar {

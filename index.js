@@ -1,6 +1,7 @@
 (async function () {
     const sendMessageUrl = 'https://prod-81.westus.logic.azure.com:443/workflows/a219c1eb36b24a22b3dde9defe36b7cc/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=KGeQlVe6VujwgRhizAdB44akjTqhM8JpTg_IfFi_O2w';
     const getTransmissionLinkUrl = 'https://prod-124.westus.logic.azure.com:443/workflows/1c8e1b831bcb47e7b4823b23fb9e3307/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=_OCHCbHT3DfZeczsQZ_T5YXStf669-zoT8HsGdJW9Y4';
+    const getLimitExceededUrl = 'https://prod-11.westus.logic.azure.com:443/workflows/429688c1071c4523ab9e53705b371ed4/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=vMGRgEec6F-zxe0P7PgifcLBUFXwNCKk1pca6JNnes4';
     const postPersonsUrl = 'https://prod-34.westus.logic.azure.com:443/workflows/331f2eedf8884f1f9eb1cac2959380ba/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=XOcN4ZMMfJ3pmkjmJUufwN9wsbZm9FnRsFdlmQvfE7E';
     const url = new URL(window.location.href);
     const headers = {
@@ -8,18 +9,21 @@
         'Content-Type': 'application/json'
     };
 
-    const app = new Vue({
+    new Vue({
         el: '.app',
         data: {
             initialized: false,
             invitationOpened: false,
             showCompleteAddress: false,
             showMap: false,
-            showPix: false,
+            photo: '',
             showInfos: false,
             focusField: '',
-            preventShare: window.location.href.toLowerCase().indexOf('prevent-share') != -1,
+            subscribeMode: window.location.href.toLowerCase().indexOf('subscribe-mode=true') != -1,
+            preventShare: window.location.href.toLowerCase().indexOf('prevent-share=true') != -1,
+            limitExceeded: true,
             tag: url.searchParams.get('tag'),
+            confirmUntil: url.searchParams.get('confirm-until'),
             persons: [{
                 name: '',
                 cpf: ''
@@ -37,7 +41,8 @@
             },
             timeout: null,
             music: document.getElementById('music'),
-            musicMuted: false
+            musicMuted: false,
+            currDate: new Date()
         },
         created: async function () {
             const self = this;
@@ -55,17 +60,21 @@
                         title: 'LinkTransmissao'
                     })
                 }).then(_ => _.text());
-    
+
                 self.transmissionUrl = transmissionUrl;
             };
 
-            await Promise.all([delayInit(), getTransmissionLink()]);
-            this.music.oncanplay = function() {
-                console.log('ok')
-            };
+            await Promise.all([delayInit(), getTransmissionLink(), this.checkLimitExceeded()]);
         },
         methods: {
-            openInvitation: function() {
+            checkLimitExceeded: async function() {
+                const limitExceeded = await fetch(getLimitExceededUrl, {
+                    headers
+                }).then(_ => _.json());
+
+                this.limitExceeded = limitExceeded;
+            },
+            openInvitation: function () {
                 this.invitationOpened = true;
                 this.music.play();
             },
@@ -96,10 +105,6 @@
                 document.execCommand('copy');
                 document.body.removeChild(el);
             },
-            copyPix: function () {
-                this.copyToClipboard('878df95f-6e64-4677-b46c-2ab111ecaa17');
-                this.showInfoAlert('Chave Pix Copiada!');
-            },
             copyTransmissionUrl: function () {
                 if (this.transmissionUrl) {
                     this.copyToClipboard(this.transmissionUrl);
@@ -107,6 +112,14 @@
                 } else {
                     this.showDangerAlert('Link de Transmissão indisponível');
                 }
+            },
+            copyPix: function () {
+                this.copyToClipboard('878df95f-6e64-4677-b46c-2ab111ecaa17');
+                this.showInfoAlert('Chave Pix Copiada!');
+            },
+            copyPixCpf: function () {
+                this.copyToClipboard('41535975890');
+                this.showInfoAlert('Chave Pix Copiada!');
             },
             openTransmissionUrl: function () {
                 if (this.transmissionUrl) {
@@ -144,8 +157,10 @@
                         return this.showDangerAlert(`Nome de ${index == 0 ? 'Meus Dados' : 'Pessoa ' + index} inválido`);
                     if (!person.cpf)
                         return this.showDangerAlert(`CPF de ${index == 0 ? 'Meus Dados' : 'Pessoa ' + index} inválido`);
+                    if (!person.phone && index == 0)
+                        return this.showDangerAlert(`Telefone de 'Meus Dados' inválido`);
 
-                    this.$set(person, 'cpf', person.cpf.toString().replace('.', ''));
+                    this.$set(person, 'cpf', person.cpf.toString().replace('.', '').replace(',', ''));
                 }
 
                 this.setLoading(true);
@@ -157,6 +172,7 @@
                 });
 
                 this.setLoading(false);
+                this.checkLimitExceeded();
                 this.persons = [{
                     name: '',
                     cpf: ''
@@ -165,12 +181,12 @@
                 await new Promise(resolve => setTimeout(resolve, 300));
                 this.showInfoAlert('As inscrições foram realizadas!');
             },
-            dismissAlert: function() {
+            dismissAlert: function () {
                 this.timeout && clearTimeout(this.timeout);
                 this.timeout = null;
                 this.setAlert('', '', false);
             },
-            toggleSound: function() {
+            toggleSound: function () {
                 this.music.muted = !this.music.muted;
                 this.musicMuted = !this.musicMuted;
             }
